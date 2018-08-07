@@ -240,7 +240,7 @@ function check_dotted_quad_address() {
   local DECIMAL_POINTS
   local PART_A PART_B PART_C PART_D
 
-  DECIMAL_POINTS=$(echo "${1}" | ggrep --only-matching "\\." | wc --lines)
+  DECIMAL_POINTS=$(echo "${1}" | ggrep --only-matching "\\." | wc -l)
   # check if there are three dots
   [ "${DECIMAL_POINTS}" -ne 3 ] && show_usage_ipcalc && error_exit
 
@@ -424,9 +424,9 @@ function show_all() {
     IPV4_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}' | gcut --delimiter="/" --fields=1)
     IPV6_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}' | gcut --delimiter="/" --fields=1)
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
-      && DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
-      || DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
-    MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
+      && DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
+      || DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
+    MAC_OF=$(gawk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
     GATEWAY=$(ip route | gawk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
     echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}" "${MAC_OF}" "${GATEWAY}" "${IPV4_ARRAY[ITEM]}" "${IPV6_ARRAY[ITEM]}"
   done
@@ -454,8 +454,8 @@ function show_driver() {
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
-      && DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
-      || DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
+      && DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
+      || DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
     echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}"
   done
 
@@ -735,7 +735,7 @@ function show_mac() {
   declare -r INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
+    MAC_OF=$(gawk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
     echo "${INTERFACES_ARRAY[ITEM]}" "${MAC_OF}"
   done
 
@@ -995,11 +995,11 @@ function show_ipcalc() {
   # pass the input into a variable
   IP=$(ggrep --extended-regexp "${REGEX_IPV4}" <<< "${1}")
   # check only the IP part
-  check_dotted_quad_address "$(awk -F '/' '{print $1}' <<< "${IP}")"
+  check_dotted_quad_address "$(gawk -F '/' '{print $1}' <<< "${IP}")"
 
   # if ipv4/cidr
   if ggrep --extended-regexp --only-matching "${REGEX_IPV4_CIDR}" <<< "${1}" &> /dev/null; then
-    CIDR=$(awk -F '/' '{print $2}' <<< "${1}")
+    CIDR=$(gawk -F '/' '{print $2}' <<< "${1}")
     # if no CIDR is specified then pass the default value
     [ ! "${CIDR}" ] && CIDR="24" # default notation
     # check for non numerical CIDR
@@ -1051,14 +1051,14 @@ function show_ipcalc() {
     # convert netmask to binary
     NETMASK_BINARY="$(dec_to_bin "${NETMASK_PART_A}").$(dec_to_bin "${NETMASK_PART_B}").$(dec_to_bin "${NETMASK_PART_C}").$(dec_to_bin "${NETMASK_PART_D}")"
     # convert netmask to CIDR
-    CIDR=$(echo "${NETMASK_BINARY}" | ggrep --only-matching 1 | wc --lines)
+    CIDR=$(echo "${NETMASK_BINARY}" | ggrep --only-matching 1 | wc -l)
   else
     show_usage_subnet
     error_exit
   fi
 
   # remove CIDR from IP address
-  IP=$(awk -F '/' '{print $1}' <<< "${IP}")
+  IP=$(gawk -F '/' '{print $1}' <<< "${IP}")
 
   # pass IP parts into multiple variables for future checks
   read -r IP_PART_A IP_PART_B IP_PART_C IP_PART_D <<< "${IP}"
@@ -1076,13 +1076,13 @@ function show_ipcalc() {
   # calculate network address by => parts of ip address AND parts of netmask address
   NETWORK_ADDRESS=$(( IP_PART_A & NETMASK_PART_A )).$(( IP_PART_B & NETMASK_PART_B )).$(( IP_PART_C & NETMASK_PART_C )).$(( IP_PART_D & NETMASK_PART_D ))
   # split network address into parts for better ease
-  PART_A=$(cut --delimiter='.' --fields=1 <<< "${NETWORK_ADDRESS}"); PART_B=$(cut --delimiter='.' --fields=2 <<< "${NETWORK_ADDRESS}")
-  PART_C=$(cut --delimiter='.' --fields=3 <<< "${NETWORK_ADDRESS}"); PART_D=$(cut --delimiter='.' --fields=4 <<< "${NETWORK_ADDRESS}")
+  PART_A=$(gcut --delimiter='.' --fields=1 <<< "${NETWORK_ADDRESS}"); PART_B=$(gcut --delimiter='.' --fields=2 <<< "${NETWORK_ADDRESS}")
+  PART_C=$(gcut --delimiter='.' --fields=3 <<< "${NETWORK_ADDRESS}"); PART_D=$(gcut --delimiter='.' --fields=4 <<< "${NETWORK_ADDRESS}")
   # convert network address to binary
   NETWORK_ADDRESS_BINARY="$(dec_to_bin "${PART_A}").$(dec_to_bin "${PART_B}").$(dec_to_bin "${PART_C}").$(dec_to_bin "${PART_D}")"
 
   # calculate host bits
-  HOST_BITS=$(echo "${NETMASK_BINARY}" | ggrep --only-matching 0 | wc --lines) # count how many 0s are there in netmask binary
+  HOST_BITS=$(echo "${NETMASK_BINARY}" | ggrep --only-matching 0 | wc -l) # count how many 0s are there in netmask binary
 
   # calculate first usable IP address
   PART_D=$(( PART_D + 1 )) # add 1 to the last octet of the network address
@@ -1100,11 +1100,11 @@ function show_ipcalc() {
   done
 
   # put a dot every 8th character and remove last occurence of dot
-  BROADCAST_ADDRESS_BINARY=$(sed --expression="s/\(.\{8\}\)/\1./g" --expression="s/\(.*\)./\1 /" <<< "${BROADCAST_ADDRESS_BINARY}")
+  BROADCAST_ADDRESS_BINARY=$(gsed --expression="s/\(.\{8\}\)/\1./g" --expression="s/\(.*\)./\1 /" <<< "${BROADCAST_ADDRESS_BINARY}")
 
   # split broadcast address binary into parts for better ease
-  PART_A=$(cut --delimiter='.' --fields=1 <<< "${BROADCAST_ADDRESS_BINARY}"); PART_B=$(cut --delimiter='.' --fields=2 <<< "${BROADCAST_ADDRESS_BINARY}")
-  PART_C=$(cut --delimiter='.' --fields=3 <<< "${BROADCAST_ADDRESS_BINARY}"); PART_D=$(cut --delimiter='.' --fields=4 <<< "${BROADCAST_ADDRESS_BINARY}")
+  PART_A=$(gcut --delimiter='.' --fields=1 <<< "${BROADCAST_ADDRESS_BINARY}"); PART_B=$(gcut --delimiter='.' --fields=2 <<< "${BROADCAST_ADDRESS_BINARY}")
+  PART_C=$(gcut --delimiter='.' --fields=3 <<< "${BROADCAST_ADDRESS_BINARY}"); PART_D=$(gcut --delimiter='.' --fields=4 <<< "${BROADCAST_ADDRESS_BINARY}")
   # convert broadcast address binary to decimal
   BROADCAST_ADDRESS="$(bin_to_dec "${PART_A}").$(bin_to_dec "${PART_B}").$(bin_to_dec "${PART_C}").$(bin_to_dec "${PART_D}")"
 
@@ -1679,9 +1679,9 @@ function show_all_cidr() {
     IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}')
     IPV6_CIDR_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}')
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
-      && DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
-      || DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
-    MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
+      && DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
+      || DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
+    MAC_OF=$(gawk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
     GATEWAY=$(ip route | gawk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
     CIDR=$(echo -n "${IPV4_CIDR_ARRAY[ITEM]}" | sed 's/^.*\//\//')
     echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}" "${MAC_OF}" "${GATEWAY}${CIDR}" "${IPV4_CIDR_ARRAY[ITEM]}" "${IPV6_CIDR_ARRAY[ITEM]}"

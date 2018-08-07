@@ -54,20 +54,20 @@ Read the [Guide]. Usage and some interactive examples are there for you :ship:
 
 ---
 
-### Requirements
+### (macOS)Requirements
 
- :wrench:   | Package      | Severity       
-:-----------|:-------------|:---------------------
- awk        | awk \| gawk  | :small_red_triangle: 
- grep       | grep         | :small_red_triangle: 
- ip         | iproute2     | :small_red_triangle: 
- mtr        | mtr          | :large_blue_circle:  
- ping       | iputils      | :small_red_triangle: 
- sed        | sed          | :small_red_triangle: 
- ss         | iproute2     | :small_red_triangle: 
- tracepath  | iputils      | :large_blue_circle:  
- traceroute | traceroute   | :large_blue_circle:  
- wget       | wget         | :small_red_triangle: 
+ :wrench:    | (Homebrew)Package               | Severity       
+:------------|:--------------------------------|:---------------------
+ `awk`       | [✔] `Homebrew/coreutils`       | :small_red_triangle: 
+ `gsed`      | [✔] `Homebrew/coreutils`       | :small_red_triangle: 
+ `ggrep`     | [✔] `Homebrew/[tap]dupe/ggrep` | :small_red_triangle:
+ `ip`        | [✔] `Homebrew/iproute2mac`     | :small_red_triangle: 
+ `mtr`       | [✔] `Homebrew/mtr`             | :large_blue_circle:  
+ `ping`      | [✔] `macOS/ Native`            | :small_red_triangle: 
+ *`ss`*      | [✘] *`iproute2`*               | :small_red_triangle: 
+ `tracepath` | [✔] `Homebrew/bwctl`           | :large_blue_circle:  
+ `traceroute`| [✔] `macOS/ Native`            | :large_blue_circle:  
+ `wget`      | [✔] `macOS/ Native`            | :small_red_triangle: 
 
  Symbol               | Meaning
 :---------------------|:---------------------------------------------------------
@@ -83,6 +83,9 @@ Of course, the script uses some of the tools included in **coreutils** and shell
 * **CAP_NET_RAW** capability should be permitted
 * Kernel must support non-raw ICMP sockets
 * User must be allowed to create ICMP echo sockets
+* macOS: `Homebrew` must be installed
+* macOS: Homebrew formula: `coreutils` (for: `gawk, gcut, gmktemp, grm, gsort, gtail`) must be installed
+* macOS: Homebrew formula: `ggrep` must be installed
 
 ---
 
@@ -93,7 +96,8 @@ Of course, the script uses some of the tools included in **coreutils** and shell
  Arch      | 4.7.5-1 - 4.11.9-1  
  Debian    | 7 - 8               
  Kali      | 2016.2              
- Ubuntu    | 14.04.3 - 16.04.1   
+ Ubuntu    | 14.04.3 - 16.04.1
+ **macOS** | **10.x - 10.14 (Beta) w/ Homebrew**   
 
 ---
 
