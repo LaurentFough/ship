@@ -153,7 +153,7 @@ function dotted_quad_ip_to_decimal {
   local IFS A B C D IP="${1}"
 
   IFS=. read -r A B C D <<< "${IP}"
-  
+
   printf '%d\n' "$(( A * 256 ** 3 + B * 256 ** 2 + C * 256 + D ))"
 
   return 0
@@ -207,7 +207,7 @@ function check_connectivity() {
 
   case "${1}" in
     "--local")
-      ip route | grep ^default &>/dev/null \
+      ip route | ggrep ^default &>/dev/null \
         || error_exit "${DIALOG_NO_LOCAL_CONNECTION}"
       ;;
     "--internet")
@@ -240,7 +240,7 @@ function check_dotted_quad_address() {
   local DECIMAL_POINTS
   local PART_A PART_B PART_C PART_D
 
-  DECIMAL_POINTS=$(echo "${1}" | grep --only-matching "\\." | wc --lines)
+  DECIMAL_POINTS=$(echo "${1}" | ggrep --only-matching "\\." | wc --lines)
   # check if there are three dots
   [ "${DECIMAL_POINTS}" -ne 3 ] && show_usage_ipcalc && error_exit
 
@@ -270,11 +270,11 @@ function check_dotted_quad_address() {
 # Checks if IPv6 is available, if not exit.
 function check_ipv6() {
 
-  # grep -i "ipv6" "/proc/modules" &> /dev/null \
-  # ifconfig -a | grep -i "inet6" &> /dev/null \
+  # ggrep -i "ipv6" "/proc/modules" &> /dev/null \
+  # ifconfig -a | ggrep -i "inet6" &> /dev/null \
   ip addr show | gsed -e's/^.*inet6 \([^ ]*\)\/.*$/\1/;t;d' &> /dev/null \
       || echo "IPv6 is supported but the 'ipv6' module is not loaded"
-  
+
   # test -f "/proc/net/if_inet6" || error_exit "${DIALOG_IPV6_UNAVAILABLE}"
 
   return 0
@@ -352,7 +352,7 @@ function error_exit() {
 function trap_handler() {
 
   local YESNO=""
-  
+
   echo
   while [[ ! "${YESNO}" =~ ^[YyNn]$ ]]; do
     echo -ne "Exit? [y/n] "
@@ -446,7 +446,7 @@ function show_all_interfaces() {
 
 # Prints the driver used of active interface.
 function show_driver() {
-  
+
   local DRIVER_OF
   local ITEM
 
@@ -456,7 +456,7 @@ function show_driver() {
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
       && DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
       || DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
-    echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}" 
+    echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}"
   done
 
   return 0
@@ -497,11 +497,11 @@ function show_ip_from() {
 
     clear_line
     TEMP_FILE=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
-    
+
     INPUT=$(echo "${1}" | sed --expression='s/^http\(\|s\):\/\///g' --expression='s/^`//' --expression='s/`//' --expression='s/`$//' | gcut --fields=1 --delimiter="/")
 
     function ping_source() {
-      
+
       for ITEM in {1..25}; do
         ping -c 1 -w "${LONG_TIMEOUT}" "${INPUT}" 2> /dev/null | gawk -F '[()]' '/PING/{print $2}' >> "${TEMP_FILE}" &
       done
@@ -510,7 +510,7 @@ function show_ip_from() {
 
     echo -ne "Pinging ${COLORS[2]}$1${COLORS[0]} ..."
     ping_source
-    
+
     # Ensure that TEMP_FILE is written on /tmp
     while [ ! -f "${TEMP_FILE}" ]; do
       ping_source
@@ -527,12 +527,12 @@ function show_ip_from() {
 function show_ips_from_file() {
 
   local FILE
-    
+
   [ -z "${1}" ] && error_exit "No file was specified. ${DIALOG_ABORTING}"
   for FILE in "${@}"; do
     [ ! -f "${FILE}" ] && error_exit "${COLORS[3]}${FILE}${COLORS[0]} does not exist. ${DIALOG_ABORTING}"
   done
-    
+
   local TEMP_FILE_IPV4 TEMP_FILE_IPV6 TEMP_FILE_MAC
   local IS_TEMP_FILE_IPV4_EMPTY IS_TEMP_FILE_IPV6_EMPTY IS_TEMP_FILE_MAC_EMPTY
 
@@ -543,9 +543,9 @@ function show_ips_from_file() {
   init_regexes
 
   for FILE in "${@}"; do
-    grep --extended-regexp --only-matching "${REGEX_IPV4}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_IPV4}"
-    grep --extended-regexp --only-matching "${REGEX_IPV6}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_IPV6}"
-    grep --extended-regexp --only-matching "${REGEX_MAC}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_MAC}"
+    ggrep --extended-regexp --only-matching "${REGEX_IPV4}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_IPV4}"
+    ggrep --extended-regexp --only-matching "${REGEX_IPV6}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_IPV6}"
+    ggrep --extended-regexp --only-matching "${REGEX_MAC}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_MAC}"
   done
 
   gsort --version-sort --unique --output="${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV4}"
@@ -595,9 +595,9 @@ function show_ips_from_file() {
 
 # Prints active network interfaces and their gateway.
 function show_gateway() {
-  
+
   local GATEWAY ITEM
-  
+
   declare -r INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
@@ -610,34 +610,34 @@ function show_gateway() {
 
 # Scans live hosts on network and prints their IPv4 address with or without MAC address. ICMP and ARP.
 function show_live_hosts() {
-  
+
   check_root_permissions
-  
+
   local ONLINE_INTERFACE NETWORK_IP NETWORK_IP_CIDR FILTERED_IP HOST
-  
+
   ONLINE_INTERFACE=$(ip route get "${GOOGLE_DNS}" | gawk -F 'dev ' 'NR == 1 {split($2, a, " "); print a[1]}')
   NETWORK_IP=$(ip route | gawk "/${ONLINE_INTERFACE}/ && /src/ {print \$1}" | gcut --fields=1 --delimiter="/")
   NETWORK_IP_CIDR=$(ip route | gawk "/${ONLINE_INTERFACE}/ && /src/ {print \$1}")
   FILTERED_IP=$(echo "${NETWORK_IP}" | gawk 'BEGIN{FS=OFS="."} NF--')
-  
+
   ip -statistics neighbour flush all &>/dev/null
-  
+
   echo -ne "Pinging ${COLORS[2]}${NETWORK_IP_CIDR}${COLORS[0]}, please wait ..."
   for HOST in {1..254}; do
     ping "${FILTERED_IP}.${HOST}" -c 1 -w "${LONG_TIMEOUT}" &>/dev/null &
   done
   handle_jobs
-  
+
   clear_line
   init_regexes
-  
+
   case "${1}" in
     "--normal")
       ip neighbour | \
         gawk 'tolower($0) ~ /reachable|stale|delay|probe/{print $1}' | \
           gsort --version-sort --unique
       ;;
-    "--mac")      
+    "--mac")
       ip neighbour | \
         gawk 'tolower($0) ~ /reachable|stale|delay|probe/{printf ("%5s\t%s\n", $1, $5)}' | \
           gsort --version-sort --unique
@@ -708,7 +708,7 @@ function show_bogon_ips() {
       for IP in "${!IPV4_DIALOG_ARRAY[@]}"; do
         printf "%-16s%s\n" "${IPV4_BOGON_ARRAY[IP]}" "${IPV4_DIALOG_ARRAY[IP]}"
       done
-      
+
       for IP in "${!IPV6_DIALOG_ARRAY[@]}"; do
         printf "%-16s%s\n" "${IPV6_BOGON_ARRAY[IP]}" "${IPV6_DIALOG_ARRAY[IP]}"
       done
@@ -717,7 +717,7 @@ function show_bogon_ips() {
       for IP in "${!IPV4_DIALOG_ARRAY[@]}"; do
         printf "%-19s%s\n" "${IPV4_CIDR_BOGON_ARRAY[IP]}" "${IPV4_DIALOG_ARRAY[IP]}"
       done
-      
+
       for IP in "${!IPV6_DIALOG_ARRAY[@]}"; do
         printf "%-19s%s\n" "${IPV6_CIDR_BOGON_ARRAY[IP]}" "${IPV6_DIALOG_ARRAY[IP]}"
       done
@@ -729,11 +729,11 @@ function show_bogon_ips() {
 
 # Prints active network interfaces with their MAC address.
 function show_mac() {
-  
+
   local MAC_OF ITEM
-  
+
   declare -r INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
-  
+
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
     MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
     echo "${INTERFACES_ARRAY[ITEM]}" "${MAC_OF}"
@@ -744,13 +744,13 @@ function show_mac() {
 
 # Shows neighbor table.
 function show_neighbor_cache() {
-  
+
   local TEMP_FILE
-  
+
   TEMP_FILE=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
 
   ip neigh | gawk 'tolower($0) ~ /permanent|noarp|stale|reachable|incomplete|delay|probe/{printf ("%-16s%-20s%s\n", $1, $5, $6)}' >> "${TEMP_FILE}"
-  
+
   gawk '{print $0}' "${TEMP_FILE}" | gsort --version-sort
 
   return 0
@@ -758,16 +758,16 @@ function show_neighbor_cache() {
 
 # Prints connections and the count of them per IP.
 function show_port_connections() {
-  
+
   [ -z "${1}" ] && print_port_protocol_list && exit 0
-  
+
   check_root_permissions
   check_if_parameter_is_positive_integer "${1}"
-  
+
   local PORT="${1}"
 
   init_regexes
-  
+
   clear
   while :; do
     clear
@@ -776,7 +776,7 @@ function show_port_connections() {
     echo -e "      ${COLORS[2]}┌─> ${COLORS[1]}Count Port ${COLORS[2]}──┐"
     echo -e "      │ ┌───────> ${COLORS[1]}IPv4 ${COLORS[2]}└─> ${COLORS[1]}${PORT}"
     echo -e "    ${COLORS[2]}┌─┘ └──────────────┐${COLORS[0]}"
-    ss --all --numeric --process | grep --extended-regexp "${REGEX_IPV4}" | grep ":${PORT}" | gawk '{print $6}' | gcut --delimiter=":" --fields=1 | gsort --version-sort | uniq --count
+    ss --all --numeric --process | ggrep --extended-regexp "${REGEX_IPV4}" | ggrep ":${PORT}" | gawk '{print $6}' | gcut --delimiter=":" --fields=1 | gsort --version-sort | uniq --count
     sleep 2
   done
 
@@ -785,7 +785,7 @@ function show_port_connections() {
 
 # Prints hops to a destination. $1=--ipv4|--ipv6, $2=network destination.
 function show_next_hops() {
-  
+
   local FILTERED_INPUT
   local PROTOCOL
   local TRACEPATH_CMD
@@ -802,7 +802,7 @@ function show_next_hops() {
   FILTERED_INPUT=$(echo "${2}" | sed 's/^http\(\|s\):\/\///g' | gcut --fields=1 --delimiter="/")
 
   check_for_missing_args "${DIALOG_NO_ARGUMENTS}" "${FILTERED_INPUT}"
-  
+
   case "${1}" in
     "--ipv4")
       PROTOCOL=4
@@ -820,7 +820,7 @@ function show_next_hops() {
   init_regexes
 
   function trace_hops() {
-    
+
     # traceroute is deprecated, nevertheless it is preferred over all
     case "${TRACEPATH_CMD}:${TRACEROUTE_CMD}:${MTR_CMD}" in
       # If none of the tools (tracepath, traceroute, mtr) is installed
@@ -832,11 +832,11 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             mtr -"${PROTOCOL}" --report-cycles 2 --no-dns --report "${FILTERED_INPUT}" 2> /dev/null | \
-              grep --extended-regexp --only-matching "${REGEX_IPV4}"
+              ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             mtr -"${PROTOCOL}" --report-cycles 2 --no-dns --report "${FILTERED_INPUT}" 2> /dev/null | \
-              grep --extended-regexp --only-matching "${REGEX_IPV6}"
+              ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -846,12 +846,12 @@ function show_next_hops() {
           4)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gtail --lines=+2 | \
-                grep --extended-regexp --only-matching "${REGEX_IPV4}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gtail --lines=+2 | \
-                grep --extended-regexp --only-matching "${REGEX_IPV6}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -860,11 +860,11 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             mtr -"${PROTOCOL}" --report-cycles 2 --no-dns --report "${FILTERED_INPUT}" 2> /dev/null | \
-              grep --extended-regexp --only-matching "${REGEX_IPV4}"
+              ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             mtr -"${PROTOCOL}" --report-cycles 2 --no-dns --report "${FILTERED_INPUT}" 2> /dev/null | \
-              grep --extended-regexp --only-matching "${REGEX_IPV6}"
+              ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -878,12 +878,12 @@ function show_next_hops() {
           4)
             timeout "${SHORT_TIMEOUT}" tracepath"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gawk '{print $2}' | \
-                grep --extended-regexp --only-matching "${REGEX_IPV4}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" tracepath"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gawk '{print $2}' | \
-                grep --extended-regexp --only-matching "${REGEX_IPV6}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -892,11 +892,11 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             mtr -"${PROTOCOL}" --report-cycles 2 --no-dns --report "${FILTERED_INPUT}" 2> /dev/null | \
-              grep --extended-regexp --only-matching "${REGEX_IPV4}"
+              ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             mtr -"${PROTOCOL}" --report-cycles 2 --no-dns --report "${FILTERED_INPUT}" 2> /dev/null | \
-              grep --extended-regexp --only-matching "${REGEX_IPV6}"
+              ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -906,12 +906,12 @@ function show_next_hops() {
           4)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gtail --lines=+2 | \
-                grep --extended-regexp --only-matching "${REGEX_IPV4}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gtail --lines=+2 | \
-                grep --extended-regexp --only-matching "${REGEX_IPV6}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -921,12 +921,12 @@ function show_next_hops() {
           4)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gtail --lines=+2 | \
-                grep --extended-regexp --only-matching "${REGEX_IPV4}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
               gtail --lines=+2 | \
-                grep --extended-regexp --only-matching "${REGEX_IPV6}"
+                ggrep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
         ;;
@@ -941,7 +941,7 @@ function show_next_hops() {
   while [ ! -f "${TEMP_FILE}" ]; do
     trace_hops
   done
-  
+
   clear_line
   gawk '!seen[$0]++ {print}' "${TEMP_FILE}"
 
@@ -993,12 +993,12 @@ function show_ipcalc() {
   init_regexes
 
   # pass the input into a variable
-  IP=$(grep --extended-regexp "${REGEX_IPV4}" <<< "${1}")
+  IP=$(ggrep --extended-regexp "${REGEX_IPV4}" <<< "${1}")
   # check only the IP part
   check_dotted_quad_address "$(awk -F '/' '{print $1}' <<< "${IP}")"
 
   # if ipv4/cidr
-  if grep --extended-regexp --only-matching "${REGEX_IPV4_CIDR}" <<< "${1}" &> /dev/null; then
+  if ggrep --extended-regexp --only-matching "${REGEX_IPV4_CIDR}" <<< "${1}" &> /dev/null; then
     CIDR=$(awk -F '/' '{print $2}' <<< "${1}")
     # if no CIDR is specified then pass the default value
     [ ! "${CIDR}" ] && CIDR="24" # default notation
@@ -1017,7 +1017,7 @@ function show_ipcalc() {
     # convert netmask to binary
     NETMASK_BINARY="$(dec_to_bin "${NETMASK_PART_A}").$(dec_to_bin "${NETMASK_PART_B}").$(dec_to_bin "${NETMASK_PART_C}").$(dec_to_bin "${NETMASK_PART_D}")"
   # if only ipv4 and no CIDR
-  elif grep --extended-regexp --only-matching "${REGEX_IPV4}" <<< "${1}" &> /dev/null; then
+  elif ggrep --extended-regexp --only-matching "${REGEX_IPV4}" <<< "${1}" &> /dev/null; then
     # if no netmask was specified keep the default value
     if [[ -z "${2}" ]]; then NETMASK="255.255.255.0"; else NETMASK="${2}"; fi
 
@@ -1025,12 +1025,12 @@ function show_ipcalc() {
     declare -a NETMASK_ARRAY
     # split netmask into parts and pass them into an array
     NETMASK_ARRAY=($(tr " " "\n" <<< "${NETMASK}"))
-    
+
     # check if netmask is valid
     check_dotted_quad_address "${NETMASK}"
     # if netmask first part is 0
     [ "${NETMASK_ARRAY[0]}" -eq 0 ] && echo -e "${DIALOG_NO_VALID_MASK}" && show_usage_subnet && error_exit
-    
+
     # iterate through netmask and validate
     for POSITION in "${!NETMASK_ARRAY[@]}"; do
       case "${NETMASK_ARRAY[POSITION]}" in
@@ -1051,7 +1051,7 @@ function show_ipcalc() {
     # convert netmask to binary
     NETMASK_BINARY="$(dec_to_bin "${NETMASK_PART_A}").$(dec_to_bin "${NETMASK_PART_B}").$(dec_to_bin "${NETMASK_PART_C}").$(dec_to_bin "${NETMASK_PART_D}")"
     # convert netmask to CIDR
-    CIDR=$(echo "${NETMASK_BINARY}" | grep --only-matching 1 | wc --lines)
+    CIDR=$(echo "${NETMASK_BINARY}" | ggrep --only-matching 1 | wc --lines)
   else
     show_usage_subnet
     error_exit
@@ -1082,7 +1082,7 @@ function show_ipcalc() {
   NETWORK_ADDRESS_BINARY="$(dec_to_bin "${PART_A}").$(dec_to_bin "${PART_B}").$(dec_to_bin "${PART_C}").$(dec_to_bin "${PART_D}")"
 
   # calculate host bits
-  HOST_BITS=$(echo "${NETMASK_BINARY}" | grep --only-matching 0 | wc --lines) # count how many 0s are there in netmask binary
+  HOST_BITS=$(echo "${NETMASK_BINARY}" | ggrep --only-matching 0 | wc --lines) # count how many 0s are there in netmask binary
 
   # calculate first usable IP address
   PART_D=$(( PART_D + 1 )) # add 1 to the last octet of the network address
@@ -1107,7 +1107,7 @@ function show_ipcalc() {
   PART_C=$(cut --delimiter='.' --fields=3 <<< "${BROADCAST_ADDRESS_BINARY}"); PART_D=$(cut --delimiter='.' --fields=4 <<< "${BROADCAST_ADDRESS_BINARY}")
   # convert broadcast address binary to decimal
   BROADCAST_ADDRESS="$(bin_to_dec "${PART_A}").$(bin_to_dec "${PART_B}").$(bin_to_dec "${PART_C}").$(bin_to_dec "${PART_D}")"
-  
+
   # calculate last usable IP address
   PART_D=$(bin_to_dec "${PART_D}") # convert to decimal in order to substract later
   PART_D=$(( PART_D - 1 )) # substract 1 from the last octet of the broadcast address
@@ -1117,7 +1117,7 @@ function show_ipcalc() {
 
   # maximum Number of hosts
   HOSTS=$(( 2 ** ( 32 - CIDR ) - 2 ))
-  
+
   # classful addressing: leading bits checking
   IP_PART_A=$(dec_to_bin "${IP_PART_A}") # convert first octet to binary
   # find class by checking first 0-4 bits
@@ -1128,7 +1128,7 @@ function show_ipcalc() {
     1110*) CLASS="D" ;;
     1111*) CLASS="E" ;;
   esac
-  
+
   # RFC 1918 based
   IP_PART_B=$(dec_to_bin "${IP_PART_B}") # convert second octet to binary
   # describe the IP address by checking the first two octets
@@ -1141,7 +1141,7 @@ function show_ipcalc() {
     1111*:*) CLASS_DESCRIPTION="Experimental" ;;
   esac
 
-  # describe IP address by checking the CIDR 30-32 
+  # describe IP address by checking the CIDR 30-32
   case "${CIDR}" in
     30)
       CLASS_DESCRIPTION+=", Glue Network PtP Link"
@@ -1190,7 +1190,7 @@ function show_ipcalc() {
   }
 
   function print_without_binary() {
-    
+
     printf "%-16s${COLORS[4]}%-21s${COLORS[0]}\n"               "Address:" "${IP}"
     printf "%-16s${COLORS[4]}%-21s${COLORS[3]}%s${COLORS[0]}\n" "Address (dec):" "$(dotted_quad_ip_to_decimal "${IP}")"
     printf "%-16s${COLORS[4]}%-21s${COLORS[3]}%s${COLORS[0]}\n" "Address (hex):" "$(dec_to_hex "$(dotted_quad_ip_to_decimal "${IP}")")"
@@ -1256,13 +1256,13 @@ function show_ipcalc() {
                 position:    relative;
                 min-height:  100%;
               }
-              
+
               body {
                 margin:           0 0 100px;
                 padding:          25px;
                 background-color: #000000;
               }
-              
+
               footer {
                 position:         absolute;
                 left:             0;
@@ -1292,7 +1292,7 @@ function show_ipcalc() {
           <td class="text">Address:</td>
           <td class="ip">${IP}</td>
           <td class="binary">${IP_BINARY}</td>
-        </tr> 
+        </tr>
         <tr>
           <td class="text">Address (dec):</td>
           <td class="ip">$(dotted_quad_ip_to_decimal "${IP}")</td>
@@ -1411,13 +1411,13 @@ EOF
                 position:    relative;
                 min-height:  100%;
               }
-              
+
               body {
                 margin:           0 0 100px;
                 padding:          25px;
                 background-color: #000000;
               }
-              
+
               footer {
                 position:         absolute;
                 left:             0;
@@ -1446,7 +1446,7 @@ EOF
         <tr>
           <td class="text">Address:</td>
           <td class="ip">${IP}</td>
-        </tr> 
+        </tr>
         <tr>
           <td class="text">Address (dec):</td>
           <td class="ip">$(dotted_quad_ip_to_decimal "${IP}")</td>
@@ -1547,7 +1547,7 @@ function show_ips_from_online_documents() {
   for DOCUMENT in "${@}"; do
     print_check "${DOCUMENT}"
     HTTP_CODE=$(wget --spider --tries 1 --timeout="${TIMEOUT}" --server-response "${DOCUMENT}" 2>&1 | gawk '/HTTP\//{print $2}' | gtail --lines=1)
-    
+
     clear_line
     [ ! "${HTTP_CODE}" = "200" ] \
       && error_exit "${COLORS[3]}${DOCUMENT}${COLORS[0]} is unreachable. Input was invalid or server is down or has connection issues. ${DIALOG_ABORTING}"
@@ -1561,9 +1561,9 @@ function show_ips_from_online_documents() {
     done
 
     clear_line
-    grep --extended-regexp --only-matching "${REGEX_IPV4}" "${TEMP_FILE_HTML}" >> "${TEMP_FILE_IPV4}"
-    grep --extended-regexp --only-matching "${REGEX_IPV6}" "${TEMP_FILE_HTML}" >> "${TEMP_FILE_IPV6}"
-    grep --extended-regexp --only-matching "${REGEX_MAC}" "${TEMP_FILE_HTML}" >> "${TEMP_FILE_MAC}"
+    ggrep --extended-regexp --only-matching "${REGEX_IPV4}" "${TEMP_FILE_HTML}" >> "${TEMP_FILE_IPV4}"
+    ggrep --extended-regexp --only-matching "${REGEX_IPV6}" "${TEMP_FILE_HTML}" >> "${TEMP_FILE_IPV6}"
+    ggrep --extended-regexp --only-matching "${REGEX_MAC}" "${TEMP_FILE_HTML}" >> "${TEMP_FILE_MAC}"
   done
 
   [ -s "${TEMP_FILE_IPV4}" ] && IS_TEMP_FILE_IPV4_EMPTY=0 || IS_TEMP_FILE_IPV4_EMPTY=1
@@ -1633,7 +1633,7 @@ function show_ipv4_cidr() {
 
   declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV4_CIDR_ARRAY
-  
+
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
     IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}')
     echo "${INTERFACES_ARRAY[ITEM]}" "${IPV4_CIDR_ARRAY[ITEM]}"
@@ -1648,7 +1648,7 @@ function show_ipv6_cidr() {
   check_ipv6
 
   local ITEM
-  
+
   declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV6_CIDR_ARRAY
 
@@ -1664,17 +1664,17 @@ function show_ipv6_cidr() {
 function show_all_cidr() {
 
   check_ipv6
-  
+
   local MAC_OF
   local DRIVER_OF
   local GATEWAY
   local CIDR
   local ITEM
-  
+
   declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV4_CIDR_ARRAY
   declare IPV6_CIDR_ARRAY
-  
+
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
     IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}')
     IPV6_CIDR_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}')
@@ -1692,7 +1692,7 @@ function show_all_cidr() {
 
 # Prints help message.
 function show_usage() {
-  
+
   echo    " usage: ${SCRIPT_NAME} [OPTION] <ARGUMENT/S>"
   echo -e "  ${SCRIPT_NAME} ${COLORS[0]}-4 ${COLORS[0]}, ${COLORS[0]}--ipv4 ${COLORS[0]}          shows active interfaces with their IPv4 address"
   echo -e "  ${SCRIPT_NAME} ${COLORS[0]}-6 ${COLORS[0]}, ${COLORS[0]}--ipv6 ${COLORS[0]}          shows active interfaces with their IPv6 address"
@@ -1745,11 +1745,11 @@ function show_usage_ipcalc() {
 
 # Starts ship.
 function sail() {
-  
+
   [ -z "${1}" ] && error_exit "${DIALOG_ERROR}"
 
   check_bash_version
-  
+
   while :; do
     case "${1}" in
       "-4"|"--ipv4")
