@@ -224,7 +224,7 @@ function check_destination() {
 
   local CLEAN_DESTINATION RETURNED_VALUE
 
-  CLEAN_DESTINATION=$(echo "${1}" | sed 's/^http\(\|s\):\/\///g' | cut --fields=1 --delimiter="/")
+  CLEAN_DESTINATION=$(echo "${1}" | sed 's/^http\(\|s\):\/\///g' | gcut --fields=1 --delimiter="/")
 
   timeout "${LONG_TIMEOUT}" ping -q -c 1 "${CLEAN_DESTINATION}" &>/dev/null || RETURNED_VALUE="${?}"
 
@@ -270,10 +270,12 @@ function check_dotted_quad_address() {
 # Checks if IPv6 is available, if not exit.
 function check_ipv6() {
 
-  grep -i "ipv6" "/proc/modules" &> /dev/null \
-    || echo "IPv6 is supported but the 'ipv6' module is not loaded"
+  # grep -i "ipv6" "/proc/modules" &> /dev/null \
+  # ifconfig -a | grep -i "inet6" &> /dev/null \
+  ip addr show | gsed -e's/^.*inet6 \([^ ]*\)\/.*$/\1/;t;d' &> /dev/null \
+      || echo "IPv6 is supported but the 'ipv6' module is not loaded"
   
-  test -f "/proc/net/if_inet6" || error_exit "${DIALOG_IPV6_UNAVAILABLE}"
+  # test -f "/proc/net/if_inet6" || error_exit "${DIALOG_IPV6_UNAVAILABLE}"
 
   return 0
 }
@@ -315,7 +317,7 @@ function check_bash_version() {
 function mr_proper() {
 
   # "${TEMP:?}" to ensure this never expands to /*
-  rm --recursive --force "${TEMP:?}/${SCRIPT_NAME}"* &>/dev/null
+  grm --recursive --force "${TEMP:?}/${SCRIPT_NAME}"* &>/dev/null
 
   return 0
 }
@@ -375,11 +377,11 @@ function show_ipv4() {
 
   local ITEM
 
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV4_ARRAY
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    IPV4_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family=inet '$0 ~ family {print $2}' | cut --delimiter="/" --fields=1)
+    IPV4_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}' | gcut --delimiter="/" --fields=1)
     echo "${INTERFACES_ARRAY[ITEM]}" "${IPV4_ARRAY[ITEM]}"
   done
 
@@ -393,11 +395,11 @@ function show_ipv6() {
 
   local ITEM
 
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV6_ARRAY
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    IPV6_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family="inet6" 'tolower($0) ~ family {print $2}' | cut --delimiter="/" --fields=1)
+    IPV6_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}' | gcut --delimiter="/" --fields=1)
     echo "${INTERFACES_ARRAY[ITEM]}" "${IPV6_ARRAY[ITEM]}"
   done
 
@@ -414,18 +416,18 @@ function show_all() {
   local GATEWAY
   local ITEM
 
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV4_ARRAY
   declare IPV6_ARRAY
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    IPV4_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family=inet '$0 ~ family {print $2}' | cut --delimiter="/" --fields=1)
-    IPV6_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family="inet6" 'tolower($0) ~ family {print $2}' | cut --delimiter="/" --fields=1)
+    IPV4_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}' | gcut --delimiter="/" --fields=1)
+    IPV6_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}' | gcut --delimiter="/" --fields=1)
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
       && DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
       || DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
     MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
-    GATEWAY=$(ip route | awk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
+    GATEWAY=$(ip route | gawk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
     echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}" "${MAC_OF}" "${GATEWAY}" "${IPV4_ARRAY[ITEM]}" "${IPV6_ARRAY[ITEM]}"
   done
 
@@ -436,7 +438,7 @@ function show_all() {
 function show_all_interfaces() {
 
   ip link show | \
-    awk '/^[0-9]/{printf "%s ", $2}' | \
+    gawk '/^[0-9]/{printf "%s ", $2}' | \
       sed 's/://g' | \
         sed 's/ *$//g'
   echo
@@ -448,7 +450,7 @@ function show_driver() {
   local DRIVER_OF
   local ITEM
 
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
@@ -472,12 +474,12 @@ function show_ip_from() {
 
   if [ -z "${1}" ]; then
     print_check "${RANDOM_SOURCE}"
-    HTTP_CODE=$(wget --spider --tries=1 --timeout="${TIMEOUT}" --server-response "${RANDOM_SOURCE}" 2>&1 | awk '/HTTP\//{print $2}' | tail --lines=1)
+    HTTP_CODE=$(wget --spider --tries=1 --timeout="${TIMEOUT}" --server-response "${RANDOM_SOURCE}" 2>&1 | gawk '/HTTP\//{print $2}' | gtail --lines=1)
 
     [ ! "${HTTP_CODE}" = "200" ] && error_exit "${DIALOG_SERVER_IS_DOWN}"
 
     clear_line
-    TEMP_FILE=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+    TEMP_FILE=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
 
     echo -ne "Grabbing ${COLORS[2]}IP${COLORS[0]} ..."
     wget "${RANDOM_SOURCE}" --quiet --output-document="${TEMP_FILE}"
@@ -488,20 +490,20 @@ function show_ip_from() {
     done
 
     clear_line
-    awk '{print $0}' "${TEMP_FILE}"
+    gawk '{print $0}' "${TEMP_FILE}"
   else
     print_check "${1}"
     check_destination "${1}"
 
     clear_line
-    TEMP_FILE=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+    TEMP_FILE=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
     
-    INPUT=$(echo "${1}" | sed --expression='s/^http\(\|s\):\/\///g' --expression='s/^`//' --expression='s/`//' --expression='s/`$//' | cut --fields=1 --delimiter="/")
+    INPUT=$(echo "${1}" | sed --expression='s/^http\(\|s\):\/\///g' --expression='s/^`//' --expression='s/`//' --expression='s/`$//' | gcut --fields=1 --delimiter="/")
 
     function ping_source() {
       
       for ITEM in {1..25}; do
-        ping -c 1 -w "${LONG_TIMEOUT}" "${INPUT}" 2> /dev/null | awk -F '[()]' '/PING/{print $2}' >> "${TEMP_FILE}" &
+        ping -c 1 -w "${LONG_TIMEOUT}" "${INPUT}" 2> /dev/null | gawk -F '[()]' '/PING/{print $2}' >> "${TEMP_FILE}" &
       done
       handle_jobs
     }
@@ -515,7 +517,7 @@ function show_ip_from() {
     done
 
     clear_line
-    sort --version-sort --unique "${TEMP_FILE}"
+    gsort --version-sort --unique "${TEMP_FILE}"
   fi
 
   return 0
@@ -534,9 +536,9 @@ function show_ips_from_file() {
   local TEMP_FILE_IPV4 TEMP_FILE_IPV6 TEMP_FILE_MAC
   local IS_TEMP_FILE_IPV4_EMPTY IS_TEMP_FILE_IPV6_EMPTY IS_TEMP_FILE_MAC_EMPTY
 
-  TEMP_FILE_IPV4=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
-  TEMP_FILE_IPV6=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
-  TEMP_FILE_MAC=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_IPV4=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_IPV6=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_MAC=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
 
   init_regexes
 
@@ -546,9 +548,9 @@ function show_ips_from_file() {
     grep --extended-regexp --only-matching "${REGEX_MAC}" "${FILE}" 2>/dev/null >> "${TEMP_FILE_MAC}"
   done
 
-  sort --version-sort --unique --output="${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV4}"
-  sort --version-sort --unique --output="${TEMP_FILE_IPV6}" "${TEMP_FILE_IPV6}"
-  sort --version-sort --unique --output="${TEMP_FILE_MAC}" "${TEMP_FILE_MAC}"
+  gsort --version-sort --unique --output="${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV4}"
+  gsort --version-sort --unique --output="${TEMP_FILE_IPV6}" "${TEMP_FILE_IPV6}"
+  gsort --version-sort --unique --output="${TEMP_FILE_MAC}" "${TEMP_FILE_MAC}"
 
   [ -s "${TEMP_FILE_IPV4}" ] && IS_TEMP_FILE_IPV4_EMPTY=0 || IS_TEMP_FILE_IPV4_EMPTY=1
   [ -s "${TEMP_FILE_IPV6}" ] && IS_TEMP_FILE_IPV6_EMPTY=0 || IS_TEMP_FILE_IPV6_EMPTY=1
@@ -557,31 +559,31 @@ function show_ips_from_file() {
   case "${IS_TEMP_FILE_IPV4_EMPTY}:${IS_TEMP_FILE_IPV6_EMPTY}:${IS_TEMP_FILE_MAC_EMPTY}" in
     0:0:0) # IPv4, IPv6 and MAC addresses
       paste "${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV6}" "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%-15s │ %-39s │ %s\n", $1, tolower($2), tolower($3))}'
+        gawk -F '\t' '{printf("%-15s │ %-39s │ %s\n", $1, tolower($2), tolower($3))}'
       ;;
     0:0:1) # Only IPv4 and IPv6 addresses
       paste "${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV6}" | \
-        awk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
+        gawk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
       ;;
     0:1:0) # Only IPv4 and MAC addresses
       paste "${TEMP_FILE_IPV4}" "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
+        gawk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
       ;;
     0:1:1) # Only IPv4 addresses
       paste "${TEMP_FILE_IPV4}" | \
-        awk -F '\t' '{printf("%s\n", $1)}'
+        gawk -F '\t' '{printf("%s\n", $1)}'
       ;;
     1:0:0) # Only IPv6 and MAC addresses
       paste "${TEMP_FILE_IPV6}" "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%-39s │ %s\n", tolower($1), tolower($2))}'
+        gawk -F '\t' '{printf("%-39s │ %s\n", tolower($1), tolower($2))}'
       ;;
     1:0:1) # Only IPv6 addresses
       paste "${TEMP_FILE_IPV6}" | \
-        awk -F '\t' '{printf("%s\n", tolower($1))}'
+        gawk -F '\t' '{printf("%s\n", tolower($1))}'
       ;;
     1:1:0) # Only MAC addresses
       paste "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%s\n", tolower($1))}'
+        gawk -F '\t' '{printf("%s\n", tolower($1))}'
       ;;
     1:1:1) # None
       error_exit "${DIALOG_NO_VALID_ADDRESSES}"
@@ -596,10 +598,10 @@ function show_gateway() {
   
   local GATEWAY ITEM
   
-  declare -r INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare -r INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    GATEWAY=$(ip route | awk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
+    GATEWAY=$(ip route | gawk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
     echo "${INTERFACES_ARRAY[ITEM]}" "${GATEWAY}"
   done
 
@@ -613,10 +615,10 @@ function show_live_hosts() {
   
   local ONLINE_INTERFACE NETWORK_IP NETWORK_IP_CIDR FILTERED_IP HOST
   
-  ONLINE_INTERFACE=$(ip route get "${GOOGLE_DNS}" | awk -F 'dev ' 'NR == 1 {split($2, a, " "); print a[1]}')
-  NETWORK_IP=$(ip route | awk "/${ONLINE_INTERFACE}/ && /src/ {print \$1}" | cut --fields=1 --delimiter="/")
-  NETWORK_IP_CIDR=$(ip route | awk "/${ONLINE_INTERFACE}/ && /src/ {print \$1}")
-  FILTERED_IP=$(echo "${NETWORK_IP}" | awk 'BEGIN{FS=OFS="."} NF--')
+  ONLINE_INTERFACE=$(ip route get "${GOOGLE_DNS}" | gawk -F 'dev ' 'NR == 1 {split($2, a, " "); print a[1]}')
+  NETWORK_IP=$(ip route | gawk "/${ONLINE_INTERFACE}/ && /src/ {print \$1}" | gcut --fields=1 --delimiter="/")
+  NETWORK_IP_CIDR=$(ip route | gawk "/${ONLINE_INTERFACE}/ && /src/ {print \$1}")
+  FILTERED_IP=$(echo "${NETWORK_IP}" | gawk 'BEGIN{FS=OFS="."} NF--')
   
   ip -statistics neighbour flush all &>/dev/null
   
@@ -632,13 +634,13 @@ function show_live_hosts() {
   case "${1}" in
     "--normal")
       ip neighbour | \
-        awk 'tolower($0) ~ /reachable|stale|delay|probe/{print $1}' | \
-          sort --version-sort --unique
+        gawk 'tolower($0) ~ /reachable|stale|delay|probe/{print $1}' | \
+          gsort --version-sort --unique
       ;;
     "--mac")      
       ip neighbour | \
-        awk 'tolower($0) ~ /reachable|stale|delay|probe/{printf ("%5s\t%s\n", $1, $5)}' | \
-          sort --version-sort --unique
+        gawk 'tolower($0) ~ /reachable|stale|delay|probe/{printf ("%5s\t%s\n", $1, $5)}' | \
+          gsort --version-sort --unique
       ;;
   esac
 
@@ -648,7 +650,7 @@ function show_live_hosts() {
 # Prints active network interfaces.
 function show_interfaces() {
 
-  declare -r INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare -r INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
 
   echo "${INTERFACES_ARRAY[@]}"
 
@@ -730,7 +732,7 @@ function show_mac() {
   
   local MAC_OF ITEM
   
-  declare -r INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare -r INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
     MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
@@ -745,11 +747,11 @@ function show_neighbor_cache() {
   
   local TEMP_FILE
   
-  TEMP_FILE=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
 
-  ip neigh | awk 'tolower($0) ~ /permanent|noarp|stale|reachable|incomplete|delay|probe/{printf ("%-16s%-20s%s\n", $1, $5, $6)}' >> "${TEMP_FILE}"
+  ip neigh | gawk 'tolower($0) ~ /permanent|noarp|stale|reachable|incomplete|delay|probe/{printf ("%-16s%-20s%s\n", $1, $5, $6)}' >> "${TEMP_FILE}"
   
-  awk '{print $0}' "${TEMP_FILE}" | sort --version-sort
+  gawk '{print $0}' "${TEMP_FILE}" | gsort --version-sort
 
   return 0
 }
@@ -774,7 +776,7 @@ function show_port_connections() {
     echo -e "      ${COLORS[2]}┌─> ${COLORS[1]}Count Port ${COLORS[2]}──┐"
     echo -e "      │ ┌───────> ${COLORS[1]}IPv4 ${COLORS[2]}└─> ${COLORS[1]}${PORT}"
     echo -e "    ${COLORS[2]}┌─┘ └──────────────┐${COLORS[0]}"
-    ss --all --numeric --process | grep --extended-regexp "${REGEX_IPV4}" | grep ":${PORT}" | awk '{print $6}' | cut --delimiter=":" --fields=1 | sort --version-sort | uniq --count
+    ss --all --numeric --process | grep --extended-regexp "${REGEX_IPV4}" | grep ":${PORT}" | gawk '{print $6}' | gcut --delimiter=":" --fields=1 | gsort --version-sort | uniq --count
     sleep 2
   done
 
@@ -791,13 +793,13 @@ function show_next_hops() {
   local MTR_CMD
   local TEMP_FILE
 
-  TEMP_FILE=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
 
   hash tracepath &>/dev/null && TRACEPATH_CMD=1 || TRACEPATH_CMD=0
   hash traceroute &>/dev/null && TRACEROUTE_CMD=1 || TRACEROUTE_CMD=0
   hash mtr &>/dev/null && MTR_CMD=1 || MTR_CMD=0
 
-  FILTERED_INPUT=$(echo "${2}" | sed 's/^http\(\|s\):\/\///g' | cut --fields=1 --delimiter="/")
+  FILTERED_INPUT=$(echo "${2}" | sed 's/^http\(\|s\):\/\///g' | gcut --fields=1 --delimiter="/")
 
   check_for_missing_args "${DIALOG_NO_ARGUMENTS}" "${FILTERED_INPUT}"
   
@@ -843,12 +845,12 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              tail --lines=+2 | \
+              gtail --lines=+2 | \
                 grep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              tail --lines=+2 | \
+              gtail --lines=+2 | \
                 grep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
@@ -875,12 +877,12 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             timeout "${SHORT_TIMEOUT}" tracepath"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              awk '{print $2}' | \
+              gawk '{print $2}' | \
                 grep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" tracepath"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              awk '{print $2}' | \
+              gawk '{print $2}' | \
                 grep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
@@ -903,12 +905,12 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              tail --lines=+2 | \
+              gtail --lines=+2 | \
                 grep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              tail --lines=+2 | \
+              gtail --lines=+2 | \
                 grep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
@@ -918,12 +920,12 @@ function show_next_hops() {
         case "${PROTOCOL}" in
           4)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              tail --lines=+2 | \
+              gtail --lines=+2 | \
                 grep --extended-regexp --only-matching "${REGEX_IPV4}"
             ;;
           6)
             timeout "${SHORT_TIMEOUT}" traceroute -"${PROTOCOL}" -n "${FILTERED_INPUT}" 2> /dev/null | \
-              tail --lines=+2 | \
+              gtail --lines=+2 | \
                 grep --extended-regexp --only-matching "${REGEX_IPV6}"
             ;;
         esac
@@ -941,7 +943,7 @@ function show_next_hops() {
   done
   
   clear_line
-  awk '!seen[$0]++ {print}' "${TEMP_FILE}"
+  gawk '!seen[$0]++ {print}' "${TEMP_FILE}"
 
   return 0
 }
@@ -1535,16 +1537,16 @@ function show_ips_from_online_documents() {
   local TEMP_FILE_IPV4 TEMP_FILE_IPV6 TEMP_FILE_MAC TEMP_FILE_HTML
   local IS_TEMP_FILE_IPV4_EMPTY IS_TEMP_FILE_IPV6_EMPTY IS_TEMP_FILE_MAC_EMPTY
 
-  TEMP_FILE_IPV4=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
-  TEMP_FILE_IPV6=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
-  TEMP_FILE_MAC=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
-  TEMP_FILE_HTML=$(mktemp "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_IPV4=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_IPV6=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_MAC=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
+  TEMP_FILE_HTML=$(gmktemp  "${TEMP}"/"${SCRIPT_NAME}".XXXXXXXXXX)
 
   init_regexes
 
   for DOCUMENT in "${@}"; do
     print_check "${DOCUMENT}"
-    HTTP_CODE=$(wget --spider --tries 1 --timeout="${TIMEOUT}" --server-response "${DOCUMENT}" 2>&1 | awk '/HTTP\//{print $2}' | tail --lines=1)
+    HTTP_CODE=$(wget --spider --tries 1 --timeout="${TIMEOUT}" --server-response "${DOCUMENT}" 2>&1 | gawk '/HTTP\//{print $2}' | gtail --lines=1)
     
     clear_line
     [ ! "${HTTP_CODE}" = "200" ] \
@@ -1568,38 +1570,38 @@ function show_ips_from_online_documents() {
   [ -s "${TEMP_FILE_IPV6}" ] && IS_TEMP_FILE_IPV6_EMPTY=0 || IS_TEMP_FILE_IPV6_EMPTY=1
   [ -s "${TEMP_FILE_MAC}" ] && IS_TEMP_FILE_MAC_EMPTY=0 || IS_TEMP_FILE_MAC_EMPTY=1
 
-  sort --version-sort --unique --output="${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV4}"
-  sort --version-sort --unique --output="${TEMP_FILE_IPV6}" "${TEMP_FILE_IPV6}"
-  sort --version-sort --unique --output="${TEMP_FILE_MAC}" "${TEMP_FILE_MAC}"
+  gsort --version-sort --unique --output="${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV4}"
+  gsort --version-sort --unique --output="${TEMP_FILE_IPV6}" "${TEMP_FILE_IPV6}"
+  gsort --version-sort --unique --output="${TEMP_FILE_MAC}" "${TEMP_FILE_MAC}"
 
   case "${IS_TEMP_FILE_IPV4_EMPTY}:${IS_TEMP_FILE_IPV6_EMPTY}:${IS_TEMP_FILE_MAC_EMPTY}" in
     0:0:0) # IPv4, IPv6 and MAC addresses
       paste "${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV6}" "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%-15s │ %-39s │ %s\n", $1, tolower($2), tolower($3))}'
+        gawk -F '\t' '{printf("%-15s │ %-39s │ %s\n", $1, tolower($2), tolower($3))}'
       ;;
     0:0:1) # Only IPv4 and IPv6 addresses
       paste "${TEMP_FILE_IPV4}" "${TEMP_FILE_IPV6}" | \
-        awk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
+        gawk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
       ;;
     0:1:0) # Only IPv4 and MAC addresses
       paste "${TEMP_FILE_IPV4}" "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
+        gawk -F '\t' '{printf("%-15s │ %s\n", $1, tolower($2))}'
       ;;
     0:1:1) # Only IPv4 addresses
       paste "${TEMP_FILE_IPV4}" | \
-        awk -F '\t' '{printf("%s\n", $1)}'
+        gawk -F '\t' '{printf("%s\n", $1)}'
       ;;
     1:0:0) # Only IPv6 and MAC addresses
       paste "${TEMP_FILE_IPV6}" "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%-39s │ %s\n", tolower($1), tolower($2))}'
+        gawk -F '\t' '{printf("%-39s │ %s\n", tolower($1), tolower($2))}'
       ;;
     1:0:1) # Only IPv6 addresses
       paste "${TEMP_FILE_IPV6}" | \
-        awk -F '\t' '{printf("%s\n", tolower($1))}'
+        gawk -F '\t' '{printf("%s\n", tolower($1))}'
       ;;
     1:1:0) # Only MAC addresses
       paste "${TEMP_FILE_MAC}" | \
-        awk -F '\t' '{printf("%s\n", tolower($1))}'
+        gawk -F '\t' '{printf("%s\n", tolower($1))}'
       ;;
     1:1:1) # None
       error_exit "${DIALOG_NO_VALID_ADDRESSES}"
@@ -1629,11 +1631,11 @@ function show_ipv4_cidr() {
 
   local ITEM
 
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV4_CIDR_ARRAY
   
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family=inet '$0 ~ family {print $2}')
+    IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}')
     echo "${INTERFACES_ARRAY[ITEM]}" "${IPV4_CIDR_ARRAY[ITEM]}"
   done
 
@@ -1647,11 +1649,11 @@ function show_ipv6_cidr() {
 
   local ITEM
   
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV6_CIDR_ARRAY
 
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    IPV6_CIDR_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family="inet6" 'tolower($0) ~ family {print $2}')
+    IPV6_CIDR_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}')
     echo "${INTERFACES_ARRAY[ITEM]}" "${IPV6_CIDR_ARRAY[ITEM]}"
   done
 
@@ -1669,18 +1671,18 @@ function show_all_cidr() {
   local CIDR
   local ITEM
   
-  declare INTERFACES_ARRAY=($(ip route | awk 'tolower($0) ~ /default/ {print $5}'))
+  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
   declare IPV4_CIDR_ARRAY
   declare IPV6_CIDR_ARRAY
   
   for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family=inet '$0 ~ family {print $2}')
-    IPV6_CIDR_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | awk -v family="inet6" 'tolower($0) ~ family {print $2}')
+    IPV4_CIDR_ARRAY[ITEM]=$(ip -4 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family=inet '$0 ~ family {print $2}')
+    IPV6_CIDR_ARRAY[ITEM]=$(ip -6 address show dev "${INTERFACES_ARRAY[ITEM]}" | gawk -v family="inet6" 'tolower($0) ~ family {print $2}')
     [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
       && DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
       || DRIVER_OF=$(awk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
     MAC_OF=$(awk '{print $0}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/address" 2> /dev/null)
-    GATEWAY=$(ip route | awk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
+    GATEWAY=$(ip route | gawk "/${INTERFACES_ARRAY[ITEM]}/ && tolower(\$0) ~ /default/ {print \$3}")
     CIDR=$(echo -n "${IPV4_CIDR_ARRAY[ITEM]}" | sed 's/^.*\//\//')
     echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}" "${MAC_OF}" "${GATEWAY}${CIDR}" "${IPV4_CIDR_ARRAY[ITEM]}" "${IPV6_CIDR_ARRAY[ITEM]}"
   done
