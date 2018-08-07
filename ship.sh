@@ -447,17 +447,19 @@ function show_all_interfaces() {
 # Prints the driver used of active interface.
 function show_driver() {
 
-  local DRIVER_OF
-  local ITEM
+  # local DRIVER_OF
+  # local ITEM
 
-  declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
+  # declare INTERFACES_ARRAY=($(ip route | gawk 'tolower($0) ~ /default/ {print $5}'))
 
-  for ITEM in "${!INTERFACES_ARRAY[@]}"; do
-    [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
-      && DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
-      || DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
-    echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}"
-  done
+  # for ITEM in "${!INTERFACES_ARRAY[@]}"; do
+  #   [ -f "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent" ] \
+  #     && DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/phy80211/device/uevent") \
+  #     || DRIVER_OF=$(gawk -F '=' 'tolower($0) ~ /driver/{print $2}' "/sys/class/net/${INTERFACES_ARRAY[ITEM]}/device/uevent")
+  #   echo "${INTERFACES_ARRAY[ITEM]}" "${DRIVER_OF}"
+  # done
+
+  kextstat -kl | gawk '/com\.apple/{printf "%s %s\n", $6, $7}' | ggrep -i -E "ethernet|network|networking"
 
   return 0
 }
