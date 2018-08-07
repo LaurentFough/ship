@@ -1,2 +1,5 @@
 _*
 .sass*
+*.do
+.do.cfg
+.do.state
