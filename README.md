@@ -7,9 +7,6 @@
     &nbsp;
   <a href="http://tldp.org/LDP/abs/html/bashver3.html#AEN20987"><img src="https://img.shields.io/badge/bash-3.2+-lightgrey.svg?style=flat-square&colorA=13818d&colorB=44c2c7"></a>
     &nbsp;
-  <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NJ4VLBTM8FB4C"><img src="https://img.shields.io/badge/paypal-donate-blue.svg?style=flat-square&colorA=13818d&colorB=44c2c7"></a>
-    &nbsp;
-  <a href="https://aur.archlinux.org/packages/ship/"><img src="https://img.shields.io/aur/version/ship.svg?style=flat-square&colorA=13818d&colorB=44c2c7"></a>
 </p>
 
 ---
@@ -104,16 +101,9 @@ Of course, the script uses some of the tools included in **coreutils** and shell
 ### Getting Started
 
 ```bash
-$ git clone --branch=master https://github.com/xtonousou/ship.git
+$ git clone --branch=master https://github.com/LaurentFough/ship.git
 $ cd /path/to/ship
 $ bash ship.sh
-```
-
-#### Arch Linux
-
-```bash
-$ yaourt -S ship
-$ ship
 ```
 
 ---
