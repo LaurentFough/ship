@@ -1,7 +1,7 @@
 <p align="center"><img width=50% src="/imgs/logo-with-text.png"></img></p>
 <p align="center">a simple, handy network addressing multitool with plenty of features</p>
 <p align="center">
-  <a href="ship.sh"><img src="https://img.shields.io/badge/version-2.6.1-blue.svg?style=flat-square&colorA=13818d&colorB=44c2c7"></a>
+  <a href="ship.sh"><img src="https://img.shields.io/badge/version-2.6.2-blue.svg?style=flat-square&colorA=13818d&colorB=44c2c7"></a>
     &nbsp;
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-GPL%20v3%2B-yellow.svg?style=flat-square&colorA=13818d&colorB=44c2c7"></a>
     &nbsp;
@@ -13,35 +13,36 @@
 
 ### Features
 
-* Show all network **interfaces**
-* Show all active network **interfaces**
-* Show the **driver** used of each active network interface
-* Show the **gateway** of each online interface
-* Show the addresses of each active network interface with or without CIDR notation
-  * **IPv4**
-  * **IPv6** (*if possible*)
-  * **MAC**
-* Show the **public/external IP/s**
-  * of user
-  * of website / domain
-* Show **active hosts** on current network with or without MAC address
-* Show all valid addresses (IPv4, IPv6, MAC) extracted
-  * from **file** or multiple **files** at once
-  * from **website** or multiple **websites** at once
-* Show the **route** to a network host using three most common tools. `ship` checks which are installed and decides to run the fastest one for each case scenario
-  * **IPv4**
-  * **IPv6** (*if possible*)
-* Show the **broadcast** and **network** address, cisco **wildcard** mask, **class** and **host range** by giving the IP address and CIDR or netmask
-  * **IPv4**
-  * optionally suppress the bitwise output
-  * display results as HTML
-  * split into networks of size n1, n2, n3 :construction:
-  * deaggregate address range :construction:
-* Show list of **common ports** with description, **private** and **reserved** IPv4 and IPv6 addresses with or without CIDR notation
-* Compatible with most of the common linux distributions
-* Drag and drop URLs or file paths on console window
-* Cleaning temp files and handling remaining tasks on exit
-* Exiting on long running tasks needs confirmation
+* [x] Show all network **interfaces**
+* [x] Show all active network **interfaces**
+* [x] Show the **driver** used of each active network interface
+	* [ ] link displayed **driver** to correct interface
+* [x] Show the **gateway** of each online interface
+* [x] Show the addresses of each active network interface with/without CIDR notation
+  * [x] **IPv4**
+  * [x] **IPv6** (*if possible*)
+  * [x] **MAC**
+* [x] Show the **public/external IP/s**
+  * [x] of user
+  * [x] of website / domain
+* [x] Show **active hosts** on current network with/without MAC address
+* [x] Show all valid addresses (IPv4, IPv6, MAC) extracted
+  * [x] from **file** or multiple **files** at once
+  * [x] from **website** or multiple **websites** at once
+* [x] Show the **route** to a network host using three most common tools. `ship` checks which are installed and decides to run the fastest one for each case scenario
+  * [x] **IPv4**
+  * [x] **IPv6** (*if possible*)
+* [x] Show the **broadcast** and **network** address, cisco **wildcard** mask, **class** and **host range** by giving the IP address and CIDR or netmask
+  * [x] **IPv4**
+  * [x] optionally suppress the bitwise output
+  * [x] display results as HTML
+  * [x] split into networks of size `n1, n2, n3` :construction:
+  * [x] de-aggregate address range :construction:
+* [x] Show list of **common ports** with description, **private** and **reserved** IPv4 and IPv6 addresses with or without CIDR notation
+* [x] Compatible with most of the common linux distributions
+* [x] Drag and drop URLs or file paths on console window
+* [x] Cleaning temp files and handling remaining tasks on exit
+* [x] Exiting on long running tasks needs confirmation
 
 ---      
 
