@@ -134,7 +134,7 @@ Read the [Changelog] file to review changes
 
 ### Contact
 
-Send me an email at [xtonousou@gmail.com]
+Send me an email at [laurent.fough@gmail.com]
 
 ----
 
